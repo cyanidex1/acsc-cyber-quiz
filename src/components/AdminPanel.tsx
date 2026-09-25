@@ -4,7 +4,7 @@ import { Leaderboard } from '@/components/Leaderboard'
 import { clearBoard, getBoard, mintToken, removeEntry, tokenStatus } from '@/lib/api'
 import type { LeaderboardEntry } from '@/types/leaderboard'
 
-const STATUS_POLL_MS = 3000
+const STATUS_POLL_MS = 1500
 const HARD_ROTATE_MS = 60000
 const BOARD_POLL_MS = 5000
 
@@ -53,7 +53,7 @@ export function AdminPanel({ boothKey, onLock }: Props) {
       const dataUrl = await QRCode.toDataURL(url, {
         errorCorrectionLevel: 'M',
         margin: 1,
-        width: 320,
+        width: 480,
         color: { dark: '#00ff41', light: '#00000000' },
       })
       qrRef.current = { token: fresh, born: Date.now() }
@@ -115,65 +115,58 @@ export function AdminPanel({ boothKey, onLock }: Props) {
             : 'GENERATING…'
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center px-4 py-8 sm:px-8">
-      <div className="w-full">
-        <div className="bezel anim-slide-up overflow-hidden">
-          <div className="scan-band" />
-          <div className="flex flex-col items-center gap-8 p-6 sm:p-10 md:flex-row md:items-start md:justify-between">
-            <div className="text-center md:text-left">
-              <p className="text-[9px] tracking-[0.4em] text-[hsl(135,32%,58%)]">
-                ▸ ACSC SOC · BOOTH CONTROL
-              </p>
-              <h1 className="font-crt glow-strong mt-2 text-5xl leading-none text-[#00ff41] sm:text-6xl">
-                ADMIN_PANEL
-              </h1>
-              <p className="mt-3 max-w-xs text-xs leading-relaxed text-[hsl(136,70%,85%)]">
-                Contestants scan the QR to get a single-use session. Each scan works once —
-                the code rotates after every play.
-              </p>
-              <button
-                onClick={onLock}
-                className="mt-5 border border-[hsl(135,60%,20%)] px-4 py-1.5 text-[9px] tracking-[0.3em] text-[hsl(135,32%,58%)] transition-colors hover:border-red-500/60 hover:text-red-400"
-              >
-                ■ LOCK TERMINAL
-              </button>
+    <div className="flex min-h-screen w-full">
+      {/* LEFT — participation QR */}
+      <section className="relative flex flex-col items-center justify-center gap-6 border-r border-[hsl(135,50%,12%)] px-6 py-8 md:w-1/2">
+        <div className="scan-band" />
+        <p className="text-[9px] tracking-[0.4em] text-[hsl(135,32%,58%)]">
+          ▸ SCAN TO PLAY
+        </p>
+        <div
+          className={`anim-slide-up border p-4 transition-all ${
+            qrState === 'pending'
+              ? 'border-[#00ff41]/60 shadow-[0_0_40px_rgba(0,255,65,0.2)]'
+              : 'border-red-500/50'
+          }`}
+        >
+          {qr ? (
+            <img
+              src={qr}
+              alt="Participation QR code"
+              className="h-64 w-64 sm:h-80 sm:w-80 lg:h-96 lg:w-96"
+            />
+          ) : (
+            <div className="flex h-64 w-64 items-center justify-center text-xs text-[hsl(135,32%,58%)] sm:h-80 sm:w-80 lg:h-96 lg:w-96">
+              <span className="blink-caret">GENERATING</span>
             </div>
-
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className={`border p-3 transition-all ${
-                  qrState === 'pending'
-                    ? 'border-[#00ff41]/60 shadow-[0_0_30px_rgba(0,255,65,0.15)]'
-                    : 'border-red-500/50'
-                }`}
-              >
-                {qr ? (
-                  <img src={qr} alt="Participation QR code" className="h-52 w-52 sm:h-64 sm:w-64" />
-                ) : (
-                  <div className="flex h-52 w-52 items-center justify-center text-xs text-[hsl(135,32%,58%)] sm:h-64 sm:w-64">
-                    <span className="blink-caret">GENERATING</span>
-                  </div>
-                )}
-              </div>
-              <p
-                className={`text-[10px] font-bold tracking-[0.3em] ${
-                  qrState === 'pending' ? 'glow text-[#00ff41]' : 'glow-danger text-red-400'
-                }`}
-              >
-                {stateLabel}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
+        <p
+          className={`text-xs font-bold tracking-[0.35em] ${
+            qrState === 'pending' ? 'glow text-[#00ff41]' : 'glow-danger text-red-400'
+          }`}
+        >
+          {stateLabel}
+        </p>
+        <p className="max-w-xs text-center text-[10px] leading-relaxed text-[hsl(135,32%,58%)]">
+          ONE SCAN · ONE RUN · AUTO-ROTATES AFTER EVERY PLAY
+        </p>
+        <button
+          onClick={onLock}
+          className="absolute bottom-4 left-4 border border-[hsl(135,60%,20%)] px-3 py-1 text-[9px] tracking-[0.3em] text-[hsl(135,32%,58%)] transition-colors hover:border-red-500/60 hover:text-red-400"
+        >
+          ■ LOCK
+        </button>
+      </section>
 
-        <div className="anim-slide-up mt-6" style={{ animationDelay: '0.15s' }}>
-          <Leaderboard
-            entries={board}
-            status={boardStatus}
-            admin={{ onRemove: handleRemove, onReset: handleReset }}
-          />
-        </div>
-      </div>
+      {/* RIGHT — live scoreboard */}
+      <section className="anim-slide-up flex flex-col px-6 py-8 md:w-1/2" style={{ animationDelay: '0.15s' }}>
+        <Leaderboard
+          entries={board}
+          status={boardStatus}
+          admin={{ onRemove: handleRemove, onReset: handleReset }}
+        />
+      </section>
     </div>
   )
 }

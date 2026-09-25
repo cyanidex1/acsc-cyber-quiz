@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { useScramble } from '@/hooks/useScramble'
 import { useTypewriter } from '@/hooks/useTypewriter'
@@ -17,22 +17,32 @@ function BootLine({ text }: { text: string }) {
 export function ContestantStart({ onStart, onInvalid }: Props) {
   const [name, setName] = useState('')
   const [error, setError] = useState(false)
-  const [claiming, setClaiming] = useState(false)
+  const [claiming, setClaiming] = useState(true)
   const title = useScramble('CYBER_AWARENESS.EXE', true, 40)
 
-  const submit = async () => {
+  /* claim the token as soon as the scanned URL is opened —
+     the booth QR rotates the instant this page loads */
+  useEffect(() => {
+    let cancelled = false
+    startSession(new URLSearchParams(window.location.search).get('t') ?? '')
+      .then(() => {
+        if (!cancelled) setClaiming(false)
+      })
+      .catch(() => {
+        if (!cancelled) onInvalid()
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [onInvalid])
+
+  const submit = () => {
     const trimmed = name.trim()
     if (!trimmed || claiming) {
       if (!trimmed) setError(true)
       return
     }
-    setClaiming(true)
-    try {
-      await startSession(new URLSearchParams(window.location.search).get('t') ?? '')
-      onStart(trimmed)
-    } catch {
-      onInvalid()
-    }
+    onStart(trimmed)
   }
 
   return (
@@ -42,7 +52,9 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
         <div className="p-6 sm:p-10">
           <div className="mb-3 flex items-center gap-2 text-[10px] tracking-[0.3em] text-[hsl(135,32%,58%)]">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41]" />
-            <BootLine text="SESSION VERIFIED · SINGLE ATTEMPT · ACSC ORIENTATION" />
+            <BootLine
+              text={claiming ? 'VERIFYING SESSION…' : 'SESSION VERIFIED · SINGLE ATTEMPT · ACSC ORIENTATION'}
+            />
           </div>
 
           <h1 className="font-crt glow-strong text-5xl leading-none tracking-tight text-[#00ff41] sm:text-7xl">
