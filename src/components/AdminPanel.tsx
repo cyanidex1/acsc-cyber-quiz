@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Leaderboard } from '@/components/Leaderboard'
 import { clearBoard, getBoard, mintToken, removeEntry, tokenStatus } from '@/lib/api'
+import { WS_URL } from '@/config'
 import type { LeaderboardEntry } from '@/types/leaderboard'
 
 const STATUS_POLL_MS = 1000
@@ -68,6 +69,50 @@ export function AdminPanel({ boothKey, onLock }: Props) {
   useEffect(() => {
     rotate()
   }, [rotate])
+
+  /* realtime push channel: the server tells us the millisecond a scan
+     claims a token or the board changes — polls below are just fallback */
+  useEffect(() => {
+    let ws: WebSocket | null = null
+    let closed = false
+    let retry = 0
+    const connect = () => {
+      if (closed) return
+      ws = new WebSocket(`${WS_URL}?k=${encodeURIComponent(boothKey)}`)
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data)
+          if (msg.type === 'claimed') rotate()
+          if (msg.type === 'board') {
+            setBoard(msg.board as LeaderboardEntry[])
+            setBoardStatus('ok')
+          }
+          if (msg.type === 'hello') {
+            setBoard(msg.board as LeaderboardEntry[])
+            setBoardStatus('ok')
+          }
+        } catch {
+          /* non-json frame — ignore */
+        }
+      }
+      ws.onclose = () => {
+        if (closed) return
+        retry = Math.min(retry + 1, 5)
+        setTimeout(connect, 500 * retry)
+      }
+      ws.onerror = () => ws?.close()
+    }
+    connect()
+    /* keepalive ping so the socket (and the DO) stays awake */
+    const ping = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) ws.send('ping')
+    }, 20000)
+    return () => {
+      closed = true
+      clearInterval(ping)
+      ws?.close()
+    }
+  }, [boothKey, rotate])
 
   useEffect(() => {
     if (!token) return

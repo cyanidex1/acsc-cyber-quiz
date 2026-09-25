@@ -4,4 +4,7 @@
 export const API_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8787'
 
+/** websocket base (admin realtime push channel) */
+export const WS_URL: string = API_URL.replace(/^http/, 'ws')
+
 export const BOOTH_KEY_STORAGE = 'acsc-booth-key'

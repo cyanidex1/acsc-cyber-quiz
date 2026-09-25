@@ -21,10 +21,16 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
   const title = useScramble('CYBER_AWARENESS.EXE', true, 40)
 
   /* claim the token as soon as the scanned URL is opened —
-     the booth QR rotates the instant this page loads */
+     the booth QR rotates the instant this page loads. If the inline
+     boot script already claimed it, just proceed. */
   useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get('t') ?? ''
     let cancelled = false
-    startSession(new URLSearchParams(window.location.search).get('t') ?? '')
+    if (sessionStorage.getItem('acsc-claimed') === token) {
+      setClaiming(false)
+      return
+    }
+    startSession(token)
       .then(() => {
         if (!cancelled) setClaiming(false)
       })

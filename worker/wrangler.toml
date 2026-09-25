@@ -8,6 +8,14 @@ kv_namespaces = [
   { binding = "LEADERBOARD", id = "403835ad58b743d386b259c31b9eb8b3" }
 ]
 
+[[durable_objects.bindings]]
+name = "GAME"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["GameRoom"]
+
 [vars]
 ALLOWED_ORIGIN = "https://cyanidex1.github.io"
 

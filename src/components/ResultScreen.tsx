@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { rankForScore } from '@/lib/ranks'
-import { submitScore } from '@/lib/api'
+import { getBoard, submitScore } from '@/lib/api'
 import { useScramble } from '@/hooks/useScramble'
 import { Leaderboard } from '@/components/Leaderboard'
 import type { LeaderboardEntry } from '@/types/leaderboard'
@@ -70,6 +70,21 @@ export function ResultScreen({ playerName, score, total, token }: Props) {
         setBoardStatus('error')
       })
   }, [token, playerName, score, total, rank.title])
+
+  /* keep the board fresh while the contestant admires their rank —
+     new scores from other players appear without a reload */
+  useEffect(() => {
+    if (syncError) return
+    const id = setInterval(() => {
+      getBoard()
+        .then((b) => {
+          setBoard(b)
+          setBoardStatus('ok')
+        })
+        .catch(() => {})
+    }, 10000)
+    return () => clearInterval(id)
+  }, [syncError])
 
   const position = board.findIndex(
     (e) => e.name === playerName && e.score === score && e.rankTitle === rank.title,

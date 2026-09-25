@@ -8,6 +8,26 @@
   </head>
   <body style="background:#030704">
     <div id="root"></div>
+    <script>
+      /* boot claim: fire the single-use token claim the instant this HTML
+         parses — before the JS bundle finishes downloading — so the booth
+         QR rotates as fast as physically possible after a scan. */
+      ;(function () {
+        try {
+          var t = new URLSearchParams(window.location.search).get('t')
+          if (!t || sessionStorage.getItem('acsc-claimed') === t) return
+          fetch('%VITE_API_URL%/session/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: t }),
+          })
+            .then(function (r) {
+              if (r.ok) sessionStorage.setItem('acsc-claimed', t)
+            })
+            .catch(function () {})
+        } catch (e) {}
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
