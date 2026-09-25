@@ -141,7 +141,7 @@ export function QuizScreen({ questions, playerName, onFinish, onExit }: Props) {
           </div>
 
           {/* question — decrypts in */}
-          <p className="halo min-h-[3.5rem] text-sm font-medium leading-relaxed text-white sm:text-base">
+          <p data-testid="question" data-diff={question.difficulty} data-qid={question.id} className="halo min-h-[3.5rem] text-sm font-medium leading-relaxed text-white sm:text-base">
             <span className="font-crt text-lg text-[#00ff41]">Q{index + 1}/{total}$ </span>
             {scrambledQuestion}
           </p>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { getBoard } from '@/lib/api'
+import { checkAdminKey } from '@/lib/api'
 
 interface Props {
   onUnlock: (key: string) => void
@@ -17,7 +17,7 @@ export function KeyGate({ onUnlock }: Props) {
     setChecking(true)
     setError(null)
     try {
-      await getBoard(trimmed) // key is valid only if the API accepts it
+      await checkAdminKey(trimmed) // key is valid only if the API accepts it
       onUnlock(trimmed)
     } catch (e) {
       setError(e instanceof Error && e.message === 'invalid booth key'

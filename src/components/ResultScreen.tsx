@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { rankForScore } from '@/lib/ranks'
 import { submitScore } from '@/lib/api'
 import { useScramble } from '@/hooks/useScramble'
+import { Leaderboard } from '@/components/Leaderboard'
 import type { LeaderboardEntry } from '@/types/leaderboard'
 
 interface Props {
   playerName: string
   score: number
   total: number
-  boothKey: string
-  onReplay: () => void
+  token: string
 }
 
 function useCountUp(target: number, duration = 1300, delay = 400) {
@@ -33,14 +33,15 @@ function useCountUp(target: number, duration = 1300, delay = 400) {
   return value
 }
 
-export function ResultScreen({ playerName, score, total, boothKey, onReplay }: Props) {
+export function ResultScreen({ playerName, score, total, token }: Props) {
   const rank = rankForScore(score)
   const displayScore = useCountUp(score)
   const [rankRevealed, setRankRevealed] = useState(false)
   const scrambledRank = useScramble(rank.title, rankRevealed, 45)
   const [board, setBoard] = useState<LeaderboardEntry[]>([])
+  const [boardStatus, setBoardStatus] = useState<'loading' | 'ok' | 'error'>('loading')
   const [syncError, setSyncError] = useState(false)
-  const savedRef = useRef(false)
+  const submittedRef = useRef(false)
 
   // decode the clearance once the score finishes counting
   useEffect(() => {
@@ -48,10 +49,10 @@ export function ResultScreen({ playerName, score, total, boothKey, onReplay }: P
     return () => clearTimeout(id)
   }, [])
 
-  // transmit the score to the server exactly once (ref survives StrictMode double-invoke)
+  // transmit the score once — the token is BURNED by the server (one shot)
   useEffect(() => {
-    if (savedRef.current) return
-    savedRef.current = true
+    if (submittedRef.current) return
+    submittedRef.current = true
     const entry: LeaderboardEntry = {
       name: playerName,
       score,
@@ -59,10 +60,16 @@ export function ResultScreen({ playerName, score, total, boothKey, onReplay }: P
       rankTitle: rank.title,
       ts: Date.now(),
     }
-    submitScore(boothKey, entry)
-      .then(setBoard)
-      .catch(() => setSyncError(true))
-  }, [boothKey, playerName, score, total, rank.title])
+    submitScore(token, entry)
+      .then((b) => {
+        setBoard(b)
+        setBoardStatus('ok')
+      })
+      .catch(() => {
+        setSyncError(true)
+        setBoardStatus('error')
+      })
+  }, [token, playerName, score, total, rank.title])
 
   const position = board.findIndex(
     (e) => e.name === playerName && e.score === score && e.rankTitle === rank.title,
@@ -77,7 +84,6 @@ export function ResultScreen({ playerName, score, total, boothKey, onReplay }: P
             ▸ EVALUATION COMPLETE — SESSION TERMINATED
           </p>
 
-          {/* animated score — CRT digits */}
           <div className="mt-4">
             <div className="font-crt glow-strong text-[7rem] leading-none tabular-nums text-[#00ff41] sm:text-[9rem]">
               {displayScore}
@@ -88,7 +94,6 @@ export function ResultScreen({ playerName, score, total, boothKey, onReplay }: P
             </p>
           </div>
 
-          {/* rank — decrypts in after the count-up */}
           <div
             className="anim-slide-up mx-auto mt-8 max-w-md border border-[#00ff41]/40 bg-black/50 px-6 py-5"
             style={{ animationDelay: '1.6s' }}
@@ -110,20 +115,15 @@ export function ResultScreen({ playerName, score, total, boothKey, onReplay }: P
             )}
           </div>
 
-          <div className="mt-8 flex justify-center">
-            <button
-              onClick={onReplay}
-              className="border border-[#00ff41]/60 bg-black/50 px-8 py-3 text-[10px] font-bold tracking-[0.3em] text-[#00ff41] transition-colors hover:bg-[#00ff41] hover:text-black"
-            >
-              RUN IT BACK ▸
-            </button>
-          </div>
+          <p className="blink-caret mt-8 text-[10px] tracking-[0.35em] text-[hsl(135,32%,58%)]">
+            SCAN THE BOOTH QR TO PLAY AGAIN
+          </p>
         </div>
       </div>
 
-      <p className="blink-caret mt-8 text-[10px] tracking-[0.35em] text-[hsl(135,32%,58%)]">
-        AWAITING NEXT OPERATOR
-      </p>
+      <div className="anim-slide-up mt-6 w-full" style={{ animationDelay: '0.2s' }}>
+        <Leaderboard entries={board} status={boardStatus} title="LEADERBOARD" />
+      </div>
     </div>
   )
 }

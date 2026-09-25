@@ -37,7 +37,7 @@ Wrangler prints the worker URL, e.g.
 Create `.env.production` in the project root:
 
 ```
-VITE_API_URL=https://acsc-cyber-quiz-api.<account>.workers.dev/leaderboard
+VITE_API_URL=https://acsc-cyber-quiz-api.<account>.workers.dev
 ```
 
 Then optionally lock CORS in `worker/wrangler.toml`:

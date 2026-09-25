@@ -1,37 +1,38 @@
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Leaderboard } from '@/components/Leaderboard'
-import { useTypewriter } from '@/hooks/useTypewriter'
 import { useScramble } from '@/hooks/useScramble'
+import { useTypewriter } from '@/hooks/useTypewriter'
+import { startSession } from '@/lib/api'
 
 interface Props {
-  boothKey: string
   onStart: (name: string) => void
-  onLock: () => void
+  onInvalid: () => void
 }
 
 function BootLine({ text }: { text: string }) {
   const { typed, done } = useTypewriter(text, 26, 300)
-  return (
-    <span className={done ? '' : 'blink-caret'}>
-      {typed || ' '}
-    </span>
-  )
+  return <span className={done ? '' : 'blink-caret'}>{typed || ' '}</span>
 }
 
-export function StartScreen({ boothKey, onStart, onLock }: Props) {
+export function ContestantStart({ onStart, onInvalid }: Props) {
   const [name, setName] = useState('')
   const [error, setError] = useState(false)
+  const [claiming, setClaiming] = useState(false)
   const title = useScramble('CYBER_AWARENESS.EXE', true, 40)
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = name.trim()
-    if (!trimmed) {
-      setError(true)
+    if (!trimmed || claiming) {
+      if (!trimmed) setError(true)
       return
     }
-    onStart(trimmed)
+    setClaiming(true)
+    try {
+      await startSession(new URLSearchParams(window.location.search).get('t') ?? '')
+      onStart(trimmed)
+    } catch {
+      onInvalid()
+    }
   }
 
   return (
@@ -39,10 +40,9 @@ export function StartScreen({ boothKey, onStart, onLock }: Props) {
       <div className="bezel anim-slide-up w-full overflow-hidden">
         <div className="scan-band" />
         <div className="p-6 sm:p-10">
-          {/* HUD status line, typed on boot */}
           <div className="mb-3 flex items-center gap-2 text-[10px] tracking-[0.3em] text-[hsl(135,32%,58%)]">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41]" />
-            <BootLine text="SOC TERMINAL // ACSC ORIENTATION BOOTH v2.4 // PHOSPHOR-9 CRT" />
+            <BootLine text="SESSION VERIFIED · SINGLE ATTEMPT · ACSC ORIENTATION" />
           </div>
 
           <h1 className="font-crt glow-strong text-5xl leading-none tracking-tight text-[#00ff41] sm:text-7xl">
@@ -54,12 +54,11 @@ export function StartScreen({ boothKey, onStart, onLock }: Props) {
 
           <div className="halo mt-7 space-y-1.5 text-sm font-medium leading-relaxed text-[hsl(136,70%,85%)]">
             <p><span className="text-[#00ff41]">$</span> whoami --verify <span className="text-white">// prove you are not the weak link</span></p>
-            <p><span className="text-[#00ff41]">&gt;</span> 10 randomized questions — phishing · passwords · 2FA · malware · public Wi-Fi</p>
+            <p><span className="text-[#00ff41]">&gt;</span> 10 questions — 5 easy · 5 moderate — phishing, passwords, 2FA, malware, Wi-Fi, privacy</p>
             <p><span className="text-[#00ff41]">&gt;</span> 15 seconds per question. No pressure. Okay, some pressure.</p>
-            <p><span className="text-[#00ff41]">&gt;</span> Instant debrief after every answer.</p>
+            <p><span className="text-[#00ff41]">&gt;</span> This QR session is single-use — one run per scan.</p>
           </div>
 
-          {/* Name input */}
           <div className="mt-8">
             <label htmlFor="codename" className="mb-2 block text-[10px] tracking-[0.35em] text-[hsl(135,32%,58%)]">
               ENTER CODENAME_
@@ -69,6 +68,7 @@ export function StartScreen({ boothKey, onStart, onLock }: Props) {
                 id="codename"
                 value={name}
                 maxLength={18}
+                disabled={claiming}
                 onChange={(e) => {
                   setName(e.target.value)
                   setError(false)
@@ -80,12 +80,13 @@ export function StartScreen({ boothKey, onStart, onLock }: Props) {
                   error ? 'anim-shake border-red-500' : ''
                 }`}
               />
-              <Button
+              <button
                 onClick={submit}
-                className="h-12 shrink-0 rounded-none border border-[#00ff41]/60 bg-[#00ff41]/10 px-8 font-mono text-xs font-bold tracking-[0.25em] text-[#00ff41] transition-all hover:bg-[#00ff41] hover:text-black"
+                disabled={claiming}
+                className="h-12 shrink-0 rounded-none border border-[#00ff41]/60 bg-[#00ff41]/10 px-8 font-mono text-xs font-bold tracking-[0.25em] text-[#00ff41] transition-all hover:bg-[#00ff41] hover:text-black disabled:opacity-50"
               >
-                INITIALIZE ▸
-              </Button>
+                {claiming ? 'VERIFYING…' : 'INITIALIZE ▸'}
+              </button>
             </div>
             {error && (
               <p className="anim-pop mt-2 text-xs text-red-400">
@@ -95,22 +96,9 @@ export function StartScreen({ boothKey, onStart, onLock }: Props) {
           </div>
         </div>
       </div>
-
-      <div className="anim-slide-up mt-8 w-full sm:px-3" style={{ animationDelay: '0.15s' }}>
-        <Leaderboard boothKey={boothKey} />
-      </div>
-
-      <div className="mt-8 flex flex-col items-center gap-3">
-        <p className="text-center text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
-          ACSC UNIVERSITY ORIENTATION · SCORES SYNC TO THE ACSC SERVER
-        </p>
-        <button
-          onClick={onLock}
-          className="border border-[hsl(135,60%,20%)] px-4 py-1.5 text-[9px] tracking-[0.3em] text-[hsl(135,32%,58%)] transition-colors hover:border-red-500/60 hover:text-red-400"
-        >
-          ■ LOCK TERMINAL
-        </button>
-      </div>
+      <p className="mt-8 text-center text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
+        ACSC UNIVERSITY ORIENTATION · SCAN THE BOOTH QR TO PLAY AGAIN
+      </p>
     </div>
   )
 }

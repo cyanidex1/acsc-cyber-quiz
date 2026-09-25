@@ -41,7 +41,7 @@ Then copy the worker URL (e.g. `https://acsc-cyber-quiz-api.x.workers.dev`)
 into `.env.production` in the project root:
 
 ```
-VITE_API_URL=https://acsc-cyber-quiz-api.<account>.workers.dev/leaderboard
+VITE_API_URL=https://acsc-cyber-quiz-api.<account>.workers.dev
 ```
 
 Optionally lock CORS to your Pages URL in `worker/wrangler.toml`:

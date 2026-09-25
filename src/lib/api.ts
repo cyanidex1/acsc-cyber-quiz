@@ -9,44 +9,78 @@ export class ApiError extends Error {
   }
 }
 
-async function req(
-  boothKey: string,
-  init: RequestInit = {},
-  query = '',
-): Promise<LeaderboardEntry[]> {
-  const res = await fetch(`${API_URL}${query}`, {
+async function raw(path: string, init: RequestInit = {}, key?: string): Promise<Response> {
+  return fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      'X-Booth-Key': boothKey,
+      ...(key ? { 'X-Booth-Key': key } : {}),
       ...(init.headers ?? {}),
     },
   })
-  if (res.status === 401 || res.status === 403) {
-    throw new ApiError(res.status, 'invalid booth key')
-  }
+}
+
+async function toJson(res: Response): Promise<unknown> {
+  const data = await res.json().catch(() => null)
   if (!res.ok) {
-    throw new ApiError(res.status, `api error ${res.status}`)
+    const msg =
+      data && typeof data === 'object' && 'error' in data
+        ? String((data as { error: unknown }).error)
+        : `api error ${res.status}`
+    throw new ApiError(res.status, msg)
   }
-  return (await res.json()) as LeaderboardEntry[]
+  return data
 }
 
-/** validates the key and returns the board — used by the key gate */
-export function getBoard(boothKey: string): Promise<LeaderboardEntry[]> {
-  return req(boothKey)
+/* ── public (contestant) ─────────────────────────────────────── */
+
+export function getBoard(): Promise<LeaderboardEntry[]> {
+  return raw('/leaderboard').then(toJson) as Promise<LeaderboardEntry[]>
 }
 
-export function submitScore(
+export function startSession(token: string): Promise<void> {
+  return raw('/session/start', { method: 'POST', body: JSON.stringify({ token }) })
+    .then(toJson)
+    .then(() => undefined)
+}
+
+export function submitScore(token: string, entry: LeaderboardEntry): Promise<LeaderboardEntry[]> {
+  return raw('/leaderboard', { method: 'POST', body: JSON.stringify({ token, entry }) }).then(
+    toJson,
+  ) as Promise<LeaderboardEntry[]>
+}
+
+/* ── admin (booth key) ───────────────────────────────────────── */
+
+export function mintToken(boothKey: string): Promise<{ token: string }> {
+  return raw('/token', { method: 'POST' }, boothKey).then(toJson) as Promise<{ token: string }>
+}
+
+export function tokenStatus(
   boothKey: string,
-  entry: LeaderboardEntry,
-): Promise<LeaderboardEntry[]> {
-  return req(boothKey, { method: 'POST', body: JSON.stringify(entry) })
+  token: string,
+): Promise<{ status: 'pending' | 'active' | 'burned' | 'unknown' }> {
+  return raw('/token/status', { method: 'POST', body: JSON.stringify({ token }) }, boothKey).then(
+    toJson,
+  ) as Promise<{ status: 'pending' | 'active' | 'burned' | 'unknown' }>
+}
+
+/** validates the key — used by the admin key gate */
+export async function checkAdminKey(boothKey: string): Promise<void> {
+  await raw('/leaderboard').then(toJson) // public sanity check
+  const res = await raw('/token/status', { method: 'POST', body: '{}' }, boothKey)
+  if (res.status === 401 || res.status === 403) throw new ApiError(401, 'invalid booth key')
+  if (!res.ok) throw new ApiError(res.status, 'api error')
 }
 
 export function removeEntry(boothKey: string, ts: number): Promise<LeaderboardEntry[]> {
-  return req(boothKey, { method: 'DELETE' }, `?ts=${ts}`)
+  return raw(`/leaderboard?ts=${ts}`, { method: 'DELETE' }, boothKey).then(toJson) as Promise<
+    LeaderboardEntry[]
+  >
 }
 
 export function clearBoard(boothKey: string): Promise<LeaderboardEntry[]> {
-  return req(boothKey, { method: 'DELETE' })
+  return raw('/leaderboard', { method: 'DELETE' }, boothKey).then(toJson) as Promise<
+    LeaderboardEntry[]
+  >
 }

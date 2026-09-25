@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { StartScreen } from '@/components/StartScreen'
 import { QuizScreen } from '@/components/QuizScreen'
 import { ResultScreen } from '@/components/ResultScreen'
 import { KeyGate } from '@/components/KeyGate'
+import { AdminPanel } from '@/components/AdminPanel'
+import { ContestantStart } from '@/components/ContestantStart'
+import { ContestantInvalid } from '@/components/ContestantInvalid'
 import { buildQuiz, type Question } from '@/data/questions'
 import { BOOTH_KEY_STORAGE } from '@/config'
-
-type Stage = 'start' | 'quiz' | 'result'
 
 function readStoredKey(): string | null {
   try {
@@ -16,12 +16,74 @@ function readStoredKey(): string | null {
   }
 }
 
+type ContestantStage = 'name' | 'quiz' | 'result' | 'invalid'
+
 export default function App() {
-  const [boothKey, setBoothKey] = useState<string | null>(readStoredKey)
-  const [stage, setStage] = useState<Stage>('start')
+  // participation token from the scanned QR (?t=...)
+  const token = new URLSearchParams(window.location.search).get('t')
+
+  if (token) {
+    return <ContestantFlow token={token} />
+  }
+  return <AdminFlow />
+}
+
+/* ── contestant: one shot per scanned QR ─────────────────────── */
+
+function ContestantFlow({ token }: { token: string }) {
+  const [stage, setStage] = useState<ContestantStage>('name')
   const [playerName, setPlayerName] = useState('')
   const [questions, setQuestions] = useState<Question[]>([])
   const [score, setScore] = useState(0)
+
+  const start = (name: string) => {
+    setPlayerName(name)
+    setQuestions(buildQuiz(10))
+    setScore(0)
+    setStage('quiz')
+  }
+
+  if (stage === 'name') {
+    return (
+      <main className="relative">
+        <ContestantStart onStart={start} onInvalid={() => setStage('invalid')} />
+      </main>
+    )
+  }
+  if (stage === 'invalid') {
+    return (
+      <main className="relative">
+        <ContestantInvalid />
+      </main>
+    )
+  }
+  if (stage === 'quiz') {
+    return (
+      <main className="relative">
+        <QuizScreen
+          key={`${playerName}-${questions[0]?.id ?? 'q'}`}
+          questions={questions}
+          playerName={playerName}
+          onFinish={(s) => {
+            setScore(s)
+            setStage('result')
+          }}
+          onExit={() => setStage('invalid')}
+        />
+      </main>
+    )
+  }
+  return (
+    <main className="relative">
+      <ResultScreen playerName={playerName} score={score} total={questions.length} token={token} />
+    </main>
+  )
+}
+
+/* ── admin: key gate → booth control panel ───────────────────── */
+
+function AdminFlow() {
+  const [boothKey, setBoothKey] = useState<string | null>(readStoredKey)
 
   const unlock = (key: string) => {
     try {
@@ -41,23 +103,6 @@ export default function App() {
     setBoothKey(null)
   }
 
-  const start = (name: string) => {
-    setPlayerName(name)
-    setQuestions(buildQuiz(10))
-    setScore(0)
-    setStage('quiz')
-  }
-
-  const finish = (finalScore: number) => {
-    setScore(finalScore)
-    setStage('result')
-  }
-
-  const replay = () => {
-    setStage('start')
-    setQuestions([])
-  }
-
   if (!boothKey) {
     return (
       <main className="relative">
@@ -65,30 +110,9 @@ export default function App() {
       </main>
     )
   }
-
   return (
     <main className="relative">
-      {stage === 'start' && (
-        <StartScreen boothKey={boothKey} onStart={start} onLock={lock} />
-      )}
-      {stage === 'quiz' && (
-        <QuizScreen
-          key={`${playerName}-${questions[0]?.id ?? 'q'}`}
-          questions={questions}
-          playerName={playerName}
-          onFinish={finish}
-          onExit={replay}
-        />
-      )}
-      {stage === 'result' && (
-        <ResultScreen
-          playerName={playerName}
-          score={score}
-          total={questions.length}
-          boothKey={boothKey}
-          onReplay={replay}
-        />
-      )}
+      <AdminPanel boothKey={boothKey} onLock={lock} />
     </main>
   )
 }

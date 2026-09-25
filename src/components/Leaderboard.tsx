@@ -1,62 +1,35 @@
-import { useCallback, useEffect, useState } from 'react'
-import { clearBoard, getBoard, removeEntry } from '@/lib/api'
+import { useEffect, useState } from 'react'
 import type { LeaderboardEntry } from '@/types/leaderboard'
 
-type Status = 'loading' | 'ok' | 'error'
-
 interface Props {
-  boothKey: string
+  entries: LeaderboardEntry[]
+  status: 'loading' | 'ok' | 'error'
+  /** admin controls — omitted for contestant read-only view */
+  admin?: {
+    onRemove: (ts: number) => void
+    onReset: () => void
+  }
+  title?: string
 }
 
-export function Leaderboard({ boothKey }: Props) {
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([])
-  const [status, setStatus] = useState<Status>('loading')
+export function Leaderboard({ entries, status, admin, title = 'HALL OF FAME' }: Props) {
   const [confirming, setConfirming] = useState(false)
 
-  const refresh = useCallback(async () => {
-    try {
-      setEntries(await getBoard(boothKey))
-      setStatus('ok')
-    } catch {
-      setStatus('error')
-    }
-  }, [boothKey])
-
   useEffect(() => {
-    refresh()
-  }, [refresh])
-
-  const handleReset = async () => {
-    if (!confirming) {
-      setConfirming(true)
-      return
-    }
-    setConfirming(false)
-    try {
-      setEntries(await clearBoard(boothKey))
-    } catch {
-      setStatus('error')
-    }
-  }
-
-  const handleRemove = async (ts: number) => {
-    try {
-      setEntries(await removeEntry(boothKey, ts))
-    } catch {
-      setStatus('error')
-    }
-  }
+    if (!confirming) return
+    const id = setTimeout(() => setConfirming(false), 3000)
+    return () => clearTimeout(id)
+  }, [confirming])
 
   return (
     <div className="panel p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xs font-bold tracking-[0.3em] text-[#00ff41]">
-          ▸ HALL OF FAME <span className="text-[hsl(135,32%,58%)]">(ACSC SERVER)</span>
+          ▸ {title} <span className="text-[hsl(135,32%,58%)]">(ACSC SERVER)</span>
         </h2>
-        {status === 'ok' && entries.length > 0 && (
+        {admin && status === 'ok' && entries.length > 0 && (
           <button
-            onClick={handleReset}
-            onBlur={() => setConfirming(false)}
+            onClick={() => (confirming ? admin.onReset() : setConfirming(true))}
             className={`border px-3 py-1 text-[10px] tracking-[0.2em] transition-all ${
               confirming
                 ? 'border-red-500 bg-red-500/15 text-red-400'
@@ -103,14 +76,16 @@ export function Leaderboard({ boothKey }: Props) {
               <span className={`font-crt text-lg leading-none tabular-nums ${i === 0 ? 'glow text-[#00ff41]' : 'text-[hsl(136,70%,65%)]'}`}>
                 {e.score}<span className="text-[hsl(135,32%,58%)]">/{e.total}</span>
               </span>
-              <button
-                onClick={() => handleRemove(e.ts)}
-                title={`Remove ${e.name}`}
-                aria-label={`Remove ${e.name} from hall of fame`}
-                className="shrink-0 border border-transparent px-1.5 text-xs text-[hsl(135,20%,45%)] opacity-60 transition-all hover:border-red-500/60 hover:text-red-400 group-hover:opacity-100"
-              >
-                ✕
-              </button>
+              {admin && (
+                <button
+                  onClick={() => admin.onRemove(e.ts)}
+                  title={`Remove ${e.name}`}
+                  aria-label={`Remove ${e.name} from hall of fame`}
+                  className="shrink-0 border border-transparent px-1.5 text-xs text-[hsl(135,20%,45%)] opacity-60 transition-all hover:border-red-500/60 hover:text-red-400 group-hover:opacity-100"
+                >
+                  ✕
+                </button>
+              )}
             </li>
           ))}
         </ol>
