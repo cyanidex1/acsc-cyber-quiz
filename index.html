@@ -9,23 +9,30 @@
   <body style="background:#030704">
     <div id="root"></div>
     <script>
-      /* boot claim: fire the single-use token claim the instant this HTML
+      /* boot claim: start the single-use token claim the instant this HTML
          parses — before the JS bundle finishes downloading — so the booth
-         QR rotates as fast as physically possible after a scan. */
+         QR rotates as fast as physically possible after a scan.
+         The result is handed to the React app via window.__acscClaim so the
+         claim fires EXACTLY once (a duplicate would be rejected by the
+         server as "already in use"). */
       ;(function () {
         try {
           var t = new URLSearchParams(window.location.search).get('t')
-          if (!t || sessionStorage.getItem('acsc-claimed') === t) return
-          fetch('%VITE_API_URL%/session/start', {
+          if (!t) return
+          window.__acscClaim = fetch('%VITE_API_URL%/session/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: t }),
           })
             .then(function (r) {
-              if (r.ok) sessionStorage.setItem('acsc-claimed', t)
+              return r.ok
             })
-            .catch(function () {})
-        } catch (e) {}
+            .catch(function () {
+              return false
+            })
+        } catch (e) {
+          window.__acscClaim = Promise.resolve(false)
+        }
       })()
     </script>
     <script type="module" src="/src/main.tsx"></script>

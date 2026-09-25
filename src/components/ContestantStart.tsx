@@ -20,23 +20,20 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
   const [claiming, setClaiming] = useState(true)
   const title = useScramble('CYBER_AWARENESS.EXE', true, 40)
 
-  /* claim the token as soon as the scanned URL is opened —
-     the booth QR rotates the instant this page loads. If the inline
-     boot script already claimed it, just proceed. */
+  /* await the boot claim fired by the inline script — it started the moment
+     this HTML parsed. If that script never ran (stale cache), fall back to
+     claiming here. Exactly one claim ever reaches the server. */
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get('t') ?? ''
     let cancelled = false
-    if (sessionStorage.getItem('acsc-claimed') === token) {
-      setClaiming(false)
-      return
-    }
-    startSession(token)
-      .then(() => {
-        if (!cancelled) setClaiming(false)
-      })
-      .catch(() => {
-        if (!cancelled) onInvalid()
-      })
+    const token = new URLSearchParams(window.location.search).get('t') ?? ''
+    const boot = (window as unknown as { __acscClaim?: Promise<boolean> }).__acscClaim
+    const claim: Promise<boolean> =
+      boot ?? startSession(token).then(() => true).catch(() => false)
+    claim.then((ok) => {
+      if (cancelled) return
+      if (ok) setClaiming(false)
+      else onInvalid()
+    })
     return () => {
       cancelled = true
     }

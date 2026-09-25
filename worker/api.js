@@ -34,6 +34,7 @@ export default {
       'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*',
       'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, X-Booth-Key',
+      'Access-Control-Max-Age': '86400',
     }
 
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors })
