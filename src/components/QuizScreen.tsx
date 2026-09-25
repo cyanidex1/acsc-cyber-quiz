@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CATEGORY_LABELS, type Question } from '@/data/questions'
 import { useScramble } from '@/hooks/useScramble'
 
-const QUESTION_TIME = 15 // seconds
+const QUESTION_TIME = 20 // seconds
 
 interface Props {
   questions: Question[]

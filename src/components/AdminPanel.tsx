@@ -4,9 +4,9 @@ import { Leaderboard } from '@/components/Leaderboard'
 import { clearBoard, getBoard, mintToken, removeEntry, tokenStatus } from '@/lib/api'
 import type { LeaderboardEntry } from '@/types/leaderboard'
 
-const STATUS_POLL_MS = 1500
+const STATUS_POLL_MS = 1000
 const HARD_ROTATE_MS = 60000
-const BOARD_POLL_MS = 5000
+const BOARD_POLL_MS = 2000
 
 type QrState = 'pending' | 'active' | 'burned' | 'unknown' | 'error' | 'loading'
 

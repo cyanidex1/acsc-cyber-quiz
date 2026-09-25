@@ -66,8 +66,8 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
 
           <div className="halo mt-7 space-y-1.5 text-sm font-medium leading-relaxed text-[hsl(136,70%,85%)]">
             <p><span className="text-[#00ff41]">$</span> whoami --verify <span className="text-white">// prove you are not the weak link</span></p>
-            <p><span className="text-[#00ff41]">&gt;</span> 10 questions — 5 easy · 5 moderate — phishing, passwords, 2FA, malware, Wi-Fi, privacy</p>
-            <p><span className="text-[#00ff41]">&gt;</span> 15 seconds per question. No pressure. Okay, some pressure.</p>
+            <p><span className="text-[#00ff41]">&gt;</span> 10 questions — 5 easy · 5 moderate — across every corner of cybersecurity</p>
+            <p><span className="text-[#00ff41]">&gt;</span> 20 seconds per question. No pressure. Okay, some pressure.</p>
             <p><span className="text-[#00ff41]">&gt;</span> This QR session is single-use — one run per scan.</p>
           </div>
 
