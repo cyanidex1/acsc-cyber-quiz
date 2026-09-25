@@ -7,7 +7,11 @@
  * CONTESTANT side (no booth key needed):
  *   GET  /leaderboard              -> top 10 (public read)
  *   POST /session/start  {token}   -> claim a pending token (fires on QR-open)
- *   POST /leaderboard    {token, entry} -> save score, BURNS the token (one shot)
+ *   POST /session/info   {token}   -> {status, quizAttempts, maxQuizAttempts, expiresAt}
+ *   POST /leaderboard    {token, entry} -> save score.
+ *       entry.game 'quiz'    -> consumes 1 of MAX_QUIZ_ATTEMPTS per token
+ *       entry.game 'firewall'-> unlimited submissions
+ *   Tokens no longer burn on submit — a session lives until its 15-min TTL.
  *
  * ADMIN side (requires X-Booth-Key):
  *   POST /token                    -> mint a fresh single-use token for the QR
@@ -15,15 +19,16 @@
  *   DELETE /leaderboard?ts=N       -> remove one entry
  *   DELETE /leaderboard            -> wipe the board
  *
- * Token lifecycle: pending → active (claimed when the scanned URL opens)
- * → burned (score submitted). Tokens expire after 15 minutes.
+ * Token lifecycle: pending → active (claimed when the scanned URL opens).
+ * Active sessions allow up to MAX_QUIZ_ATTEMPTS quiz submissions plus
+ * unlimited firewall-defense submissions, and expire after 15 minutes.
  */
 
 import { GameRoom } from './game.js'
 
 export { GameRoom }
 
-const GAME_PATHS = ['/leaderboard', '/session/start', '/token', '/token/status', '/ws']
+const GAME_PATHS = ['/leaderboard', '/session/start', '/session/info', '/token', '/token/status', '/ws']
 const ADMIN_PATHS = new Set(['/token', '/token/status'])
 
 export default {

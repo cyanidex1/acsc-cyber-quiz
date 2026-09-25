@@ -10,6 +10,8 @@ interface Props {
   score: number
   total: number
   token: string
+  onMenu: () => void
+  onRetry: () => void
 }
 
 function useCountUp(target: number, duration = 1300, delay = 400) {
@@ -33,7 +35,7 @@ function useCountUp(target: number, duration = 1300, delay = 400) {
   return value
 }
 
-export function ResultScreen({ playerName, score, total, token }: Props) {
+export function ResultScreen({ playerName, score, total, token, onMenu, onRetry }: Props) {
   const rank = rankForScore(score)
   const displayScore = useCountUp(score)
   const [rankRevealed, setRankRevealed] = useState(false)
@@ -41,6 +43,7 @@ export function ResultScreen({ playerName, score, total, token }: Props) {
   const [board, setBoard] = useState<LeaderboardEntry[]>([])
   const [boardStatus, setBoardStatus] = useState<'loading' | 'ok' | 'error'>('loading')
   const [syncError, setSyncError] = useState(false)
+  const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null)
   const submittedRef = useRef(false)
 
   // decode the clearance once the score finishes counting
@@ -49,7 +52,7 @@ export function ResultScreen({ playerName, score, total, token }: Props) {
     return () => clearTimeout(id)
   }, [])
 
-  // transmit the score once — the token is BURNED by the server (one shot)
+  // transmit the score once — consumes one quiz attempt, keeps best on board
   useEffect(() => {
     if (submittedRef.current) return
     submittedRef.current = true
@@ -59,10 +62,12 @@ export function ResultScreen({ playerName, score, total, token }: Props) {
       total,
       rankTitle: rank.title,
       ts: Date.now(),
+      game: 'quiz',
     }
     submitScore(token, entry)
-      .then((b) => {
-        setBoard(b)
+      .then((res) => {
+        setBoard(res.board)
+        setAttemptsLeft(res.attemptsLeft)
         setBoardStatus('ok')
       })
       .catch(() => {
@@ -130,8 +135,24 @@ export function ResultScreen({ playerName, score, total, token }: Props) {
             )}
           </div>
 
-          <p className="blink-caret mt-8 text-[10px] tracking-[0.35em] text-[hsl(135,32%,58%)]">
-            SCAN THE BOOTH QR TO PLAY AGAIN
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3" style={{ animationDelay: '1.6s' }}>
+            {attemptsLeft !== null && attemptsLeft > 0 && (
+              <button
+                onClick={onRetry}
+                className="border border-[#00ff41]/60 bg-[#00ff41]/10 px-8 py-2.5 font-mono text-xs font-bold tracking-[0.3em] text-[#00ff41] transition-all hover:bg-[#00ff41] hover:text-black"
+              >
+                RETRY QUIZ ({attemptsLeft} LEFT) ▸
+              </button>
+            )}
+            <button
+              onClick={onMenu}
+              className="border border-[hsl(135,60%,20%)] px-8 py-2.5 font-mono text-xs font-bold tracking-[0.3em] text-[hsl(135,32%,58%)] transition-all hover:border-[#00ff41] hover:text-[#00ff41]"
+            >
+              GAME MENU
+            </button>
+          </div>
+          <p className="mt-4 text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
+            SESSION STAYS LIVE FOR 15 MIN — NO RESCAN NEEDED
           </p>
         </div>
       </div>

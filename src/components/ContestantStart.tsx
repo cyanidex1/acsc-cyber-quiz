@@ -56,7 +56,7 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
           <div className="mb-3 flex items-center gap-2 text-[10px] tracking-[0.3em] text-[hsl(135,32%,58%)]">
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41]" />
             <BootLine
-              text={claiming ? 'VERIFYING SESSION…' : 'SESSION VERIFIED · SINGLE ATTEMPT · ACSC ORIENTATION'}
+              text={claiming ? 'VERIFYING SESSION…' : 'SESSION VERIFIED · 3 QUIZ ATTEMPTS · ACSC ORIENTATION'}
             />
           </div>
 
@@ -69,9 +69,10 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
 
           <div className="halo mt-7 space-y-1.5 text-sm font-medium leading-relaxed text-[hsl(136,70%,85%)]">
             <p><span className="text-[#00ff41]">$</span> whoami --verify <span className="text-white">// prove you are not the weak link</span></p>
-            <p><span className="text-[#00ff41]">&gt;</span> 10 questions — 5 easy · 5 moderate — across every corner of cybersecurity</p>
-            <p><span className="text-[#00ff41]">&gt;</span> 20 seconds per question. No pressure. Okay, some pressure.</p>
-            <p><span className="text-[#00ff41]">&gt;</span> This QR session is single-use — one run per scan.</p>
+            <p><span className="text-[#00ff41]">&gt;</span> Two training sims: the 10-question Cyber Quiz and the arcade-style Firewall Defense</p>
+            <p><span className="text-[#00ff41]">&gt;</span> Quiz: 20 seconds per question, 3 attempts — best score hits the board.</p>
+            <p><span className="text-[#00ff41]">&gt;</span> Firewall Defense: unlimited runs — quarantine the malware, protect the server.</p>
+            <p><span className="text-[#00ff41]">&gt;</span> Your session stays live for 15 minutes per scan.</p>
           </div>
 
           <div className="mt-8">
@@ -112,7 +113,7 @@ export function ContestantStart({ onStart, onInvalid }: Props) {
         </div>
       </div>
       <p className="mt-8 text-center text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
-        ACSC UNIVERSITY ORIENTATION · SCAN THE BOOTH QR TO PLAY AGAIN
+        ACSC UNIVERSITY ORIENTATION · ONE SESSION PER SCAN
       </p>
     </div>
   )

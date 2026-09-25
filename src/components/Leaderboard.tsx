@@ -70,11 +70,21 @@ export function Leaderboard({ entries, status, admin, title = 'HALL OF FAME' }: 
                 {String(i + 1).padStart(2, '0')}
               </span>
               <span className="halo flex-1 truncate font-medium text-[hsl(136,70%,85%)]">{e.name}</span>
+              <span
+                className={`shrink-0 border px-1.5 py-0.5 text-[8px] font-bold tracking-[0.2em] ${
+                  (e.game || 'quiz') === 'firewall'
+                    ? 'border-[#ffb020]/50 text-[#ffb020]'
+                    : 'border-[hsl(135,60%,25%)] text-[hsl(135,32%,58%)]'
+                }`}
+              >
+                {(e.game || 'quiz') === 'firewall' ? 'FW' : 'QUIZ'}
+              </span>
               <span className="hidden text-[10px] tracking-widest text-[hsl(135,32%,58%)] sm:inline">
                 {e.rankTitle}
               </span>
               <span className={`font-crt text-lg leading-none tabular-nums ${i === 0 ? 'glow text-[#00ff41]' : 'text-[hsl(136,70%,65%)]'}`}>
-                {e.score}<span className="text-[hsl(135,32%,58%)]">/{e.total}</span>
+                {e.score}
+                {e.total > 0 && <span className="text-[hsl(135,32%,58%)]">/{e.total}</span>}
               </span>
               {admin && (
                 <button

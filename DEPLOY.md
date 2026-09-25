@@ -6,6 +6,13 @@ Everything else is already configured in this repo.
 
 Estimated total time: ~15 minutes.
 
+> **Two-game update:** the app now serves two sims per scan — Cyber Quiz
+> (3 attempts, best score kept) and Firewall Defense (unlimited runs). Both
+> are tied to the contestant's codename on the same leaderboard (tagged
+> QUIZ / FW). The token is no longer burned on the first submit; sessions
+> live until their 15-minute TTL. **Deploy the worker before the frontend** —
+> the old one-shot worker rejects the new traffic.
+
 ---
 
 ## Step 1 — GitHub repo (2 min)

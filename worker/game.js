@@ -12,6 +12,9 @@
 
 const MAX_ENTRIES = 10
 const TOKEN_TTL_MS = 15 * 60 * 1000 // 15 minutes
+export const MAX_QUIZ_ATTEMPTS = 3
+const GAMES = new Set(['quiz', 'firewall'])
+const MAX_SCORE = 1000000
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -32,10 +35,14 @@ function validEntry(e) {
     e.name.length <= 24 &&
     typeof e.score === 'number' &&
     e.score >= 0 &&
-    e.score <= 10 &&
+    e.score <= MAX_SCORE &&
     typeof e.total === 'number' &&
+    e.total >= 0 &&
+    e.total <= MAX_SCORE &&
     typeof e.rankTitle === 'string' &&
-    typeof e.ts === 'number'
+    e.rankTitle.length <= 40 &&
+    typeof e.ts === 'number' &&
+    (e.game === undefined || GAMES.has(e.game))
   )
 }
 
@@ -115,43 +122,81 @@ export class GameRoom {
       return json(sortBoard(this.board).slice(0, MAX_ENTRIES))
     }
 
-    // ── contestant: submit score (burns the token, one shot) ──────
+    // ── contestant: submit a score ────────────────────────────────
+    // quiz consumes one of MAX_QUIZ_ATTEMPTS; firewall is unlimited.
+    // Best score per (name, game) stays on the board.
     if (url.pathname === '/leaderboard' && method === 'POST') {
       const { token, entry } = body || {}
       const t = this.getToken(token)
       if (!t) return json({ error: 'invalid or expired token' }, 404)
-      if (t.status === 'burned') return json({ error: 'token already used' }, 410)
-      if (t.status !== 'active') return json({ error: 'token not claimed for a session' }, 409)
+      if (t.status !== 'active') {
+        return json(
+          { error: t.status === 'pending' ? 'token not claimed for a session' : 'token already used' },
+          t.status === 'pending' ? 409 : 410,
+        )
+      }
       if (!validEntry(entry)) return json({ error: 'invalid entry' }, 400)
 
-      t.status = 'burned'
+      const game = entry.game || 'quiz'
+      if (game === 'quiz') {
+        const used = t.quizAttempts || 0
+        if (used >= MAX_QUIZ_ATTEMPTS) {
+          return json({ error: 'quiz attempts exhausted', attemptsLeft: 0 }, 410)
+        }
+        t.quizAttempts = used + 1
+      }
+      const attemptsLeft = game === 'quiz' ? MAX_QUIZ_ATTEMPTS - (t.quizAttempts || 0) : null
+
       const key = entry.name.trim().toLowerCase()
+      const incoming = { ...entry, game }
+      const existing = this.board.find(
+        (e) => e.name.trim().toLowerCase() === key && (e.game || 'quiz') === game,
+      )
+      // keep the better score for this name+game; a fresh ts wins ties so
+      // the player's own view always reflects their latest run
+      const kept =
+        existing && existing.score > incoming.score ? existing : { ...incoming, ts: Date.now() }
       this.board = sortBoard([
-        ...this.board.filter((e) => e.name.trim().toLowerCase() !== key),
-        entry,
+        ...this.board.filter(
+          (e) => !(e.name.trim().toLowerCase() === key && (e.game || 'quiz') === game),
+        ),
+        kept,
       ]).slice(0, MAX_ENTRIES)
       await this.persist()
       this.broadcast('board', { board: this.board })
-      return json(this.board)
+      return json({ board: this.board, attemptsLeft, best: kept.score })
     }
 
     // ── contestant: claim a token (fires the moment a scanned URL opens) ──
+    // Idempotent on 'active' — a page reload mid-session must not kill a
+    // contestant who still has attempts left.
     if (url.pathname === '/session/start' && method === 'POST') {
       const t = this.getToken(body?.token)
       if (!t) return json({ error: 'invalid or expired token' }, 404)
-      if (t.status === 'burned') return json({ error: 'token already used' }, 410)
-      if (t.status === 'active') return json({ error: 'token already in use' }, 409)
+      if (t.status === 'active') return json({ ok: true, expiresIn: Math.max(0, (t.expiresAt - Date.now()) / 1000) })
       t.status = 'active'
       await this.persist()
       this.broadcast('claimed', { token: body.token })
       return json({ ok: true, expiresIn: TOKEN_TTL_MS / 1000 })
     }
 
+    // ── contestant: session state for the game-select screen ──────
+    if (url.pathname === '/session/info' && method === 'POST') {
+      const t = this.getToken(body?.token)
+      if (!t) return json({ error: 'invalid or expired token' }, 404)
+      return json({
+        status: t.status,
+        quizAttempts: t.quizAttempts || 0,
+        maxQuizAttempts: MAX_QUIZ_ATTEMPTS,
+        expiresAt: t.expiresAt,
+      })
+    }
+
     // ── admin: mint a token for the QR ────────────────────────────
     if (url.pathname === '/token' && method === 'POST') {
       this.gc()
       const token = crypto.randomUUID().replace(/-/g, '')
-      this.tokens.set(token, { status: 'pending', expiresAt: Date.now() + TOKEN_TTL_MS })
+      this.tokens.set(token, { status: 'pending', expiresAt: Date.now() + TOKEN_TTL_MS, quizAttempts: 0 })
       await this.persist()
       return json({ token })
     }

@@ -44,10 +44,31 @@ export function startSession(token: string): Promise<void> {
     .then(() => undefined)
 }
 
-export function submitScore(token: string, entry: LeaderboardEntry): Promise<LeaderboardEntry[]> {
+export interface SessionInfo {
+  status: 'pending' | 'active' | 'unknown'
+  quizAttempts: number
+  maxQuizAttempts: number
+  expiresAt: number
+}
+
+/** session state for the game-select screen (attempts used, expiry) */
+export function sessionInfo(token: string): Promise<SessionInfo> {
+  return raw('/session/info', { method: 'POST', body: JSON.stringify({ token }) }).then(
+    toJson,
+  ) as Promise<SessionInfo>
+}
+
+export interface SubmitResult {
+  board: LeaderboardEntry[]
+  /** remaining quiz attempts after this submit; null for firewall (unlimited) */
+  attemptsLeft: number | null
+  best: number
+}
+
+export function submitScore(token: string, entry: LeaderboardEntry): Promise<SubmitResult> {
   return raw('/leaderboard', { method: 'POST', body: JSON.stringify({ token, entry }) }).then(
     toJson,
-  ) as Promise<LeaderboardEntry[]>
+  ) as Promise<SubmitResult>
 }
 
 /* ── admin (booth key) ───────────────────────────────────────── */

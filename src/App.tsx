@@ -5,6 +5,8 @@ import { KeyGate } from '@/components/KeyGate'
 import { AdminPanel } from '@/components/AdminPanel'
 import { ContestantStart } from '@/components/ContestantStart'
 import { ContestantInvalid } from '@/components/ContestantInvalid'
+import { GameSelect } from '@/components/GameSelect'
+import { FirewallDefense } from '@/components/FirewallDefense'
 import { buildQuiz, type Question } from '@/data/questions'
 import { BOOTH_KEY_STORAGE } from '@/config'
 
@@ -16,7 +18,7 @@ function readStoredKey(): string | null {
   }
 }
 
-type ContestantStage = 'name' | 'quiz' | 'result' | 'invalid'
+type ContestantStage = 'name' | 'select' | 'quiz' | 'game' | 'result' | 'invalid'
 
 export default function App() {
   // participation token from the scanned QR (?t=...)
@@ -28,19 +30,31 @@ export default function App() {
   return <AdminFlow />
 }
 
-/* ── contestant: one shot per scanned QR ─────────────────────── */
+/* ── contestant: one session per scanned QR ──────────────────── */
 
 function ContestantFlow({ token }: { token: string }) {
   const [stage, setStage] = useState<ContestantStage>('name')
   const [playerName, setPlayerName] = useState('')
   const [questions, setQuestions] = useState<Question[]>([])
   const [score, setScore] = useState(0)
+  const [runKey, setRunKey] = useState(0)
 
   const start = (name: string) => {
     setPlayerName(name)
+    setScore(0)
+    setStage('select')
+  }
+
+  const playQuiz = () => {
     setQuestions(buildQuiz(10))
     setScore(0)
+    setRunKey((k) => k + 1)
     setStage('quiz')
+  }
+
+  const playFirewall = () => {
+    setRunKey((k) => k + 1)
+    setStage('game')
   }
 
   if (stage === 'name') {
@@ -57,25 +71,57 @@ function ContestantFlow({ token }: { token: string }) {
       </main>
     )
   }
+  if (stage === 'select') {
+    return (
+      <main className="relative">
+        <GameSelect
+          playerName={playerName}
+          token={token}
+          onPlayQuiz={playQuiz}
+          onPlayFirewall={playFirewall}
+          onExit={() => setStage('invalid')}
+        />
+      </main>
+    )
+  }
   if (stage === 'quiz') {
     return (
       <main className="relative">
         <QuizScreen
-          key={`${playerName}-${questions[0]?.id ?? 'q'}`}
+          key={`${playerName}-${runKey}`}
           questions={questions}
           playerName={playerName}
           onFinish={(s) => {
             setScore(s)
             setStage('result')
           }}
-          onExit={() => setStage('invalid')}
+          onExit={() => setStage('select')}
+        />
+      </main>
+    )
+  }
+  if (stage === 'game') {
+    return (
+      <main className="relative">
+        <FirewallDefense
+          key={`fw-${runKey}`}
+          playerName={playerName}
+          token={token}
+          onExit={() => setStage('select')}
         />
       </main>
     )
   }
   return (
     <main className="relative">
-      <ResultScreen playerName={playerName} score={score} total={questions.length} token={token} />
+      <ResultScreen
+        playerName={playerName}
+        score={score}
+        total={questions.length}
+        token={token}
+        onMenu={() => setStage('select')}
+        onRetry={playQuiz}
+      />
     </main>
   )
 }

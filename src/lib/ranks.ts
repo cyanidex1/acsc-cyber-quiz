@@ -20,3 +20,25 @@ export function rankForScore(score: number): Rank {
   }
   return current
 }
+
+export interface FirewallRank {
+  min: number // minimum points
+  title: string
+  blurb: string
+}
+
+export const FIREWALL_RANKS: FirewallRank[] = [
+  { min: 0, title: 'PACKET SNIFFER', blurb: 'The malware walked straight past you. Everyone starts somewhere.' },
+  { min: 400, title: 'JUNIOR ADMIN', blurb: 'You caught the obvious ones. The sneaky packets got through.' },
+  { min: 1200, title: 'FIREWALL OP', blurb: 'Solid quarantine discipline under pressure. The SOC approves.' },
+  { min: 2500, title: 'GATEKEEPER', blurb: 'Barely anything slips your perimeter. Impressive reflexes.' },
+  { min: 4500, title: 'NETWORK SENTINEL', blurb: 'An unbroken wall. The malware never stood a chance.' },
+]
+
+export function firewallRankForScore(score: number): FirewallRank {
+  let current = FIREWALL_RANKS[0]
+  for (const rank of FIREWALL_RANKS) {
+    if (score >= rank.min) current = rank
+  }
+  return current
+}
