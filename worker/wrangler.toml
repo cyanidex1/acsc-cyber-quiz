@@ -9,9 +9,7 @@ kv_namespaces = [
 ]
 
 [vars]
-# Lock this to your GitHub Pages URL once deployed, e.g.
-# ALLOWED_ORIGIN = "https://your-org.github.io"
-ALLOWED_ORIGIN = "*"
+ALLOWED_ORIGIN = "https://cyanidex1.github.io"
 
 # 3. Set the shared booth key (kept out of git):
 #    npx wrangler secret put BOOTH_KEY
