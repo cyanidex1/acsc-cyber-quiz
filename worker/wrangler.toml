@@ -1,0 +1,19 @@
+name = "acsc-cyber-quiz-api"
+main = "api.js"
+compatibility_date = "2024-06-01"
+
+# 1. Create the namespace:  npx wrangler kv namespace create LEADERBOARD
+# 2. Paste the returned id below.
+kv_namespaces = [
+  { binding = "LEADERBOARD", id = "PASTE_NAMESPACE_ID_HERE" }
+]
+
+[vars]
+# Lock this to your GitHub Pages URL once deployed, e.g.
+# ALLOWED_ORIGIN = "https://your-org.github.io"
+ALLOWED_ORIGIN = "*"
+
+# 3. Set the shared booth key (kept out of git):
+#    npx wrangler secret put BOOTH_KEY
+# 4. Deploy:
+#    npx wrangler deploy
