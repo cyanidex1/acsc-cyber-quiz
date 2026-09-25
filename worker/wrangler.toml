@@ -5,7 +5,7 @@ compatibility_date = "2024-06-01"
 # 1. Create the namespace:  npx wrangler kv namespace create LEADERBOARD
 # 2. Paste the returned id below.
 kv_namespaces = [
-  { binding = "LEADERBOARD", id = "PASTE_NAMESPACE_ID_HERE" }
+  { binding = "LEADERBOARD", id = "403835ad58b743d386b259c31b9eb8b3" }
 ]
 
 [vars]
