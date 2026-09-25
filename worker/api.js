@@ -82,10 +82,13 @@ export default {
     const authed = request.headers.get('X-Booth-Key') === env.BOOTH_KEY
     let body = null
     if (request.method === 'POST') {
-      try {
-        body = await request.json()
-      } catch {
-        return json({ error: 'bad json' }, 400, cors)
+      const text = await request.text()
+      if (text) {
+        try {
+          body = JSON.parse(text)
+        } catch {
+          return json({ error: 'bad json' }, 400, cors)
+        }
       }
     }
 
