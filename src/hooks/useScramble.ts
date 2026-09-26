@@ -17,7 +17,7 @@ export function useScramble(text: string, active = true, speedMs = 26) {
     let settled = 0
     setDisplay('')
     const id = setInterval(() => {
-      settled += 0.6
+      settled += 1.2
       const out = text
         .split('')
         .map((ch, i) => {
