@@ -73,10 +73,11 @@ function freshWorld(): World {
   }
 }
 
-/* speed model: gentle start, slow linear ramp, hard cap */
-const START_SPEED = 68
-const SPEED_RAMP = 3.6 // px/s gained per second of play
-const MAX_SPEED = 250
+/* speed model: brisk start, steep eased ramp, then a HARD plateau —
+   at max speed packets cross in ~2s, which caps runs at 3-4 minutes */
+const START_SPEED = 80
+const SPEED_RAMP = 4.2 // px/s gained per second of play
+const MAX_SPEED = 270 // the "hold" — reached around the 45s mark
 
 const COLORS: Record<PacketKind, { stroke: string; fill: string; glyph: string; glyphColor: string; labelColor: string }> = {
   malware: { stroke: '#ff3b3b', fill: 'rgba(255,59,59,0.14)', glyph: '✕', glyphColor: '#ff7b7b', labelColor: '#ff9d9d' },
@@ -87,7 +88,7 @@ const COLORS: Record<PacketKind, { stroke: string; fill: string; glyph: string; 
 function spawnPacket(w: World) {
   const r = Math.random()
   const bonusP = 0.05
-  const malwareP = Math.min(0.5, 0.32 + w.elapsed * 0.0016)
+  const malwareP = Math.min(0.58, 0.34 + w.elapsed * 0.002)
   const kind: PacketKind = r < bonusP ? 'bonus' : r < bonusP + malwareP ? 'malware' : 'clean'
   const names = PACKET_NAMES[kind]
   // avoid impossible walls: max 3 of 4 lanes occupied near the top
@@ -168,7 +169,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, w: World, t: number) {
   ctx.textAlign = 'center'
   ctx.fillText('— INBOUND TRAFFIC —', W / 2, 22)
 
-  /* packets — named: glyph + traffic type label */
+  /* packets — named: glyph + traffic type label, bold for legibility */
   for (const p of w.packets) {
     const c = COLORS[p.kind]
     const x = p.lane * LANE_W + LANE_W / 2
@@ -178,19 +179,19 @@ function drawFrame(ctx: CanvasRenderingContext2D, w: World, t: number) {
     ctx.fillStyle = c.fill
     ctx.strokeStyle = c.stroke
     ctx.lineWidth = 2
-    const pw = 72
-    const ph = 50
+    const pw = 78
+    const ph = 54
     ctx.beginPath()
     ctx.roundRect(x - pw / 2, p.y - ph / 2, pw, ph, 7)
     ctx.fill()
     ctx.stroke()
     ctx.shadowBlur = 0
     ctx.fillStyle = c.glyphColor
-    ctx.font = '20px "JetBrains Mono", monospace'
-    ctx.fillText(c.glyph, x, p.y - 2)
+    ctx.font = 'bold 24px "JetBrains Mono", monospace'
+    ctx.fillText(c.glyph, x, p.y - 3)
     ctx.fillStyle = c.labelColor
-    ctx.font = '8px "JetBrains Mono", monospace'
-    ctx.fillText(p.name, x, p.y + 15)
+    ctx.font = 'bold 11px "JetBrains Mono", monospace'
+    ctx.fillText(p.name, x, p.y + 17)
     ctx.restore()
   }
 
@@ -284,9 +285,9 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
       w.elapsed += dt
       w.shake = Math.max(0, w.shake - dt * 2)
 
-      /* spawn — gentle start, interval tightens gradually */
+      /* spawn — tightens faster so the plateau stays crowded */
       w.spawnAcc += dt
-      const interval = Math.max(0.48, 1.15 - w.elapsed * 0.006)
+      const interval = Math.max(0.36, 1.05 - w.elapsed * 0.009)
       while (w.spawnAcc >= interval) {
         w.spawnAcc -= interval
         spawnPacket(w)

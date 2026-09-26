@@ -12,7 +12,7 @@ export type Category =
   | 'browsing'
   | 'physical'
 
-export type Difficulty = 'easy' | 'moderate'
+export type Difficulty = 'easy' | 'moderate' | 'hard'
 
 export interface Question {
   id: number
@@ -483,9 +483,67 @@ export const QUESTION_BANK: Question[] = [
     answerIndex: 1,
     explanation: 'Encryption plus a real lock and remote wipe turns a stolen phone into a brick of useless glass.',
   },
+
+  // ═══ HARD POOL (8) — 2 drawn per quiz ═════════════════════════
+  {
+    id: 61, category: '2fa', difficulty: 'hard',
+    question: 'At 2 a.m. your phone buzzes with a login approval request you never triggered. What is happening and what should you do?',
+    options: ['A harmless sync glitch — approve it so it stops', 'MFA push bombing: someone has your password and is spamming approvals hoping you tap one — deny it, change your password, and report it', 'Ignore it — expired requests mean nothing happened', 'Turn off 2FA so the notifications stop'],
+    answerIndex: 1,
+    explanation: 'Push fatigue attacks rely on sleepy victims approving one request. Denying + rotating the password kills the attacker\'s access.',
+  },
+  {
+    id: 62, category: 'malware', difficulty: 'hard',
+    question: 'A "free textbook PDF" won\'t open unless you disable your antivirus first because of a "false positive". That request is…',
+    options: ['Normal for large academic files', 'A massive red flag — documents never need antivirus disabled; the file is almost certainly malware', 'Fine if the download site looks professional', 'Only risky on Windows machines'],
+    answerIndex: 1,
+    explanation: 'Any file demanding you lower your defenses to run is malware by definition. No legitimate PDF, doc, or textbook needs that.',
+  },
+  {
+    id: 63, category: 'breaches', difficulty: 'hard',
+    question: 'A site you use confirms a breach: your email and hashed password were stolen. What is the most dangerous follow-up attack?',
+    options: ['More spam in your inbox', 'Credential stuffing — attackers trying your email+password combo across hundreds of other sites where you reused it', 'Your screen brightness being changed', 'Nothing serious — hashing makes the passwords useless'],
+    answerIndex: 1,
+    explanation: 'Hashing slows one attack, but people reuse passwords everywhere. The stolen pair gets automated against banks, email, social media.',
+  },
+  {
+    id: 64, category: 'browsing', difficulty: 'hard',
+    question: 'A browser extension asks permission to "read and change all your data on all websites". What does that really mean?',
+    options: ['It can see and modify everything you do in that browser — passwords you type, logged-in sessions, every page — and send it anywhere', 'It only speeds up page loading', 'It can only access the extension store', 'Nothing, as long as you have antivirus running'],
+    answerIndex: 0,
+    explanation: 'That permission is total surveillance power. Malicious extensions harvest credentials and session cookies with it.',
+  },
+  {
+    id: 65, category: 'social', difficulty: 'hard',
+    question: 'Your phone shows an incoming call from your bank\'s real number, and the "agent" names your actual last transaction — then asks for the one-time code sent to your phone "to cancel a fraudulent transfer". You…',
+    options: ['Give the code — caller ID and transaction knowledge prove it\'s the bank', 'Hang up and call the number on the back of your card — caller ID is spoofable and breach data leaks transactions; banks never ask for one-time codes', 'Read only half the code aloud', 'Ask them to text you instead'],
+    answerIndex: 1,
+    explanation: 'Caller ID is trivially spoofed and past breaches expose transaction data. Knowledge is not proof of identity — one-time codes are never shared.',
+  },
+  {
+    id: 66, category: 'passwords', difficulty: 'hard',
+    question: 'Why does "Tr0ub4dor&3"-style complexity lose to a passphrase like "donkey engine planet marble"?',
+    options: ['Symbols are quietly banned by most sites', 'Entropy: crackers know the pattern (word + leetspeak + digit + symbol) and burn through it fast, while random word combinations defeat the pattern approach', 'Passphrases are always shorter, so they type faster', 'Complexity never mattered in the first place'],
+    answerIndex: 1,
+    explanation: 'Attackers crack the human pattern, not the character count. Four random words beats one mangled word of similar length.',
+  },
+  {
+    id: 67, category: 'wifi', difficulty: 'hard',
+    question: 'Your laptop silently auto-joins a network called "Campus_WiFi" with no login page — but the real campus network always asks you to sign in. What is most likely going on?',
+    options: ['The campus upgraded to passwordless login overnight', 'An evil twin — an attacker\'s hotspot harvesting traffic from devices that auto-connect to familiar names', 'Your Wi-Fi card is failing', 'A new 5G fallback feature'],
+    answerIndex: 1,
+    explanation: 'Devices remember network names, not identities. Anyone can broadcast "Campus_WiFi" and intercept everything unencrypted that flows through it.',
+  },
+  {
+    id: 68, category: 'identity', difficulty: 'hard',
+    question: 'A recruiter DMs you a job offer, sends a "skills test" that is a .exe file, and asks for a photo of your ID "to prepare the offer letter" before any interview. This is…',
+    options: ['Standard hiring practice at fast-moving startups', 'A combined malware + identity-theft scam — real employers send documents, never executables, and never need your ID before a genuine offer', 'Fine as long as their profile picture looks professional', 'Risky only because of the .exe, the ID part is normal'],
+    answerIndex: 1,
+    explanation: 'Executable "tests" are malware delivery, and ID photos before a real offer feed identity-document fraud. Two scams in one lure.',
+  },
 ]
 
-/** balanced draw: half easy, half moderate, fully shuffled */
+/** draw: 6 easy · 2 moderate · 2 hard, fully shuffled */
 export function buildQuiz(count = 10): Question[] {
   const shuffle = <T,>(arr: T[]): T[] => {
     const a = [...arr]
@@ -495,8 +553,9 @@ export function buildQuiz(count = 10): Question[] {
     }
     return a
   }
-  const easyCount = Math.ceil(count / 2)
-  const easies = shuffle(QUESTION_BANK.filter((q) => q.difficulty === 'easy')).slice(0, easyCount)
-  const moderates = shuffle(QUESTION_BANK.filter((q) => q.difficulty === 'moderate')).slice(0, count - easyCount)
-  return shuffle([...easies, ...moderates])
+  const tier = Math.floor(count / 5) // 2 for a 10-question quiz
+  const easies = shuffle(QUESTION_BANK.filter((q) => q.difficulty === 'easy')).slice(0, count - tier * 2)
+  const moderates = shuffle(QUESTION_BANK.filter((q) => q.difficulty === 'moderate')).slice(0, tier)
+  const hards = shuffle(QUESTION_BANK.filter((q) => q.difficulty === 'hard')).slice(0, tier)
+  return shuffle([...easies, ...moderates, ...hards])
 }
