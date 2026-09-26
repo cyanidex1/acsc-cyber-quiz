@@ -86,11 +86,12 @@ function freshWorld(): World {
   }
 }
 
-/* speed model: brisk start, steep eased ramp, then a HARD plateau —
-   at max speed packets cross in under 2s, capping runs around 3 minutes */
+/* speed model: brisk start, then constant acceleration with NO plateau —
+   the ramp never stops, so every run ends when the speed outpaces the
+   player (typically inside 3-4 minutes) */
 const START_SPEED = 90
-const SPEED_RAMP = 5.5 // px/s gained per second of play
-const MAX_SPEED = 300 // the "hold" — reached around the 38s mark
+const SPEED_RAMP = 5.5 // px/s gained per second of play, forever
+const MAX_SPEED = 1400 // physics safety ceiling — unreachable in a real run
 
 const COLORS: Record<PacketKind, { stroke: string; fill: string; glyph: string; glyphColor: string; labelColor: string }> = {
   malware: { stroke: '#ff3b3b', fill: 'rgba(255,59,59,0.14)', glyph: '✕', glyphColor: '#ff7b7b', labelColor: '#ff9d9d' },
@@ -630,7 +631,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
           </div>
 
           <p className="mt-3 text-center text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
-            FOLLOW THE PRIORITY QUEUE · SPEED RAMPS HARD AND STAYS THERE · UNLIMITED RUNS
+            FOLLOW THE PRIORITY QUEUE · SPEED NEVER STOPS RISING · UNLIMITED RUNS
           </p>
         </div>
       </div>
