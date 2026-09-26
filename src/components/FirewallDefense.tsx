@@ -55,6 +55,18 @@ interface World {
   shake: number
   /** eased global packet speed — starts slow, ramps gradually, never jerks */
   speedSmooth: number
+  /** priority target queue — malware must be quarantined in THIS order */
+  queue: string[]
+}
+
+/** fresh 3-step priority queue of distinct malware names */
+function newQueue(): string[] {
+  const pool = [...PACKET_NAMES.malware]
+  const q: string[] = []
+  for (let i = 0; i < 3; i++) {
+    q.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0])
+  }
+  return q
 }
 
 function freshWorld(): World {
@@ -70,14 +82,15 @@ function freshWorld(): World {
     idCounter: 1,
     shake: 0,
     speedSmooth: START_SPEED,
+    queue: newQueue(),
   }
 }
 
 /* speed model: brisk start, steep eased ramp, then a HARD plateau —
-   at max speed packets cross in ~2s, which caps runs at 3-4 minutes */
-const START_SPEED = 80
-const SPEED_RAMP = 4.2 // px/s gained per second of play
-const MAX_SPEED = 270 // the "hold" — reached around the 45s mark
+   at max speed packets cross in under 2s, capping runs around 3 minutes */
+const START_SPEED = 90
+const SPEED_RAMP = 5.5 // px/s gained per second of play
+const MAX_SPEED = 300 // the "hold" — reached around the 38s mark
 
 const COLORS: Record<PacketKind, { stroke: string; fill: string; glyph: string; glyphColor: string; labelColor: string }> = {
   malware: { stroke: '#ff3b3b', fill: 'rgba(255,59,59,0.14)', glyph: '✕', glyphColor: '#ff7b7b', labelColor: '#ff9d9d' },
@@ -88,7 +101,7 @@ const COLORS: Record<PacketKind, { stroke: string; fill: string; glyph: string; 
 function spawnPacket(w: World) {
   const r = Math.random()
   const bonusP = 0.05
-  const malwareP = Math.min(0.58, 0.34 + w.elapsed * 0.002)
+  const malwareP = Math.min(0.6, 0.36 + w.elapsed * 0.0022)
   const kind: PacketKind = r < bonusP ? 'bonus' : r < bonusP + malwareP ? 'malware' : 'clean'
   const names = PACKET_NAMES[kind]
   // avoid impossible walls: max 3 of 4 lanes occupied near the top
@@ -192,6 +205,24 @@ function drawFrame(ctx: CanvasRenderingContext2D, w: World, t: number) {
     ctx.fillStyle = c.labelColor
     ctx.font = 'bold 11px "JetBrains Mono", monospace'
     ctx.fillText(p.name, x, p.y + 17)
+    /* priority queue markers — amber chevron on the current head target,
+       faint dashed ring on the other queued types */
+    if (p.kind === 'malware') {
+      const qIdx = w.queue.indexOf(p.name)
+      if (qIdx === 0) {
+        ctx.fillStyle = '#ffb020'
+        ctx.font = 'bold 14px "JetBrains Mono", monospace'
+        ctx.fillText('▼ TARGET', x, p.y - ph / 2 - 6)
+      } else if (qIdx > 0) {
+        ctx.strokeStyle = 'rgba(255,176,32,0.45)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([4, 4])
+        ctx.beginPath()
+        ctx.roundRect(x - pw / 2 - 4, p.y - ph / 2 - 4, pw + 8, ph + 8, 9)
+        ctx.stroke()
+        ctx.setLineDash([])
+      }
+    }
     ctx.restore()
   }
 
@@ -228,7 +259,13 @@ type Phase = 'ready' | 'playing' | 'over'
 
 export function FirewallDefense({ playerName, token, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>('ready')
-  const [hud, setHud] = useState({ score: 0, shields: MAX_SHIELDS, level: 1, combo: 0 })
+  const [hud, setHud] = useState({
+    score: 0,
+    shields: MAX_SHIELDS,
+    level: 1,
+    combo: 0,
+    queue: [] as string[],
+  })
   const [finalScore, setFinalScore] = useState(0)
   const [best, setBest] = useState<number | null>(null)
   const [syncError, setSyncError] = useState(false)
@@ -248,13 +285,15 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
       shields: w.shields,
       level: 1 + Math.floor(w.elapsed / 10),
       combo: w.combo,
+      queue: w.queue,
     }
     const prev = hudRef.current
     if (
       next.score !== prev.score ||
       next.shields !== prev.shields ||
       next.level !== prev.level ||
-      next.combo !== prev.combo
+      next.combo !== prev.combo ||
+      next.queue.join('▸') !== prev.queue.join('▸')
     ) {
       setHud(next)
     }
@@ -287,7 +326,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
 
       /* spawn — tightens faster so the plateau stays crowded */
       w.spawnAcc += dt
-      const interval = Math.max(0.36, 1.05 - w.elapsed * 0.009)
+      const interval = Math.max(0.32, 1.0 - w.elapsed * 0.01)
       while (w.spawnAcc >= interval) {
         w.spawnAcc -= interval
         spawnPacket(w)
@@ -384,8 +423,24 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
     w.comboAt = now
 
     if (hit.kind === 'malware') {
-      w.score += 100 + Math.min(w.combo, 10) * 10
-      burst(w, px, hit.y, '#00ff41', 10)
+      const seqHit = hit.name === w.queue[0]
+      if (seqHit) {
+        /* sequence hit: current priority target */
+        w.combo = now - w.comboAt < COMBO_WINDOW_MS ? w.combo + 1 : 1
+        w.comboAt = now
+        w.score += 150 + Math.min(w.combo, 10) * 10
+        w.queue.shift()
+        if (w.queue.length === 0) {
+          w.score += 300
+          w.queue = newQueue()
+          burst(w, px, hit.y, '#ffb020', 22)
+        }
+      } else {
+        /* out of sequence — small mercy points, combo dies */
+        w.score += 40
+        w.combo = 0
+      }
+      burst(w, px, hit.y, seqHit ? '#00ff41' : '#7bd88f', 10)
     } else if (hit.kind === 'clean') {
       w.score = Math.max(0, w.score - 50)
       w.combo = 0
@@ -400,7 +455,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
 
   const startRun = () => {
     worldRef.current = freshWorld()
-    setHud({ score: 0, shields: MAX_SHIELDS, level: 1, combo: 0 })
+    setHud({ score: 0, shields: MAX_SHIELDS, level: 1, combo: 0, queue: worldRef.current.queue })
     setSyncError(false)
     setBest(null)
     setPhase('playing')
@@ -442,7 +497,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
       <div className="bezel anim-pop relative w-full overflow-hidden">
         <div className="scan-band" />
         <div className="p-4 sm:p-6">
-          <div className="mb-3 flex items-end justify-between">
+          <div className="mb-3 flex items-end justify-between gap-4">
             <div>
               <p className="text-[9px] tracking-[0.35em] text-[hsl(135,32%,58%)]">
                 ▸ PERIMETER BREACH IMMINENT
@@ -457,6 +512,18 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
                   <span className="ml-3 text-xl text-[#ffb020]">×{hud.combo} COMBO</span>
                 )}
               </div>
+              <p className="mt-1.5 text-[10px] font-bold tracking-[0.25em]">
+                <span className="text-[#ffb020]">▸ PRIORITY QUEUE: </span>
+                {hud.queue.map((n, i) => (
+                  <span
+                    key={`${n}-${i}`}
+                    className={i === 0 ? 'glow text-[#ffb020]' : 'text-[hsl(135,32%,58%)]'}
+                  >
+                    {n}
+                    {i < hud.queue.length - 1 && <span className="text-[hsl(135,32%,58%)]"> ▸ </span>}
+                  </span>
+                ))}
+              </p>
             </div>
             {lowShields && (
               <p className="anim-crt-flicker glow-danger text-[10px] font-bold tracking-[0.3em] text-red-500">
@@ -482,7 +549,14 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
                 <div className="halo mt-5 space-y-1.5 text-sm font-medium leading-relaxed text-[hsl(136,70%,85%)]">
                   <p>
                     <span className="text-[#ff6b6b]">✕ RED packets</span> = malware — tap to
-                    quarantine (<span className="text-[#00ff41]">+100</span>, combos stack)
+                    quarantine
+                  </p>
+                  <p>
+                    <span className="text-[#ffb020]">▸ PRIORITY QUEUE</span> (top of HUD): hit the
+                    listed malware <span className="text-[#ffb020]">IN ORDER</span> — head target
+                    pays <span className="text-[#00ff41]">+150</span> & combos, finishing a queue
+                    pays <span className="text-[#ffb020]">+300</span>. Out-of-order malware: only
+                    +40 and your combo dies.
                   </p>
                   <p>
                     <span className="text-[#00ff41]">✓ GREEN packets</span> = clean traffic — do
@@ -494,7 +568,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
                   </p>
                   <p>Every malware that crosses the wall burns a shield. 3 shields. Then it's over.</p>
                   <p className="text-[hsl(135,32%,58%)]">
-                    Every packet is labeled with its traffic type — read the flow, know your enemy.
+                    Every packet is labeled — read the flow, follow the queue.
                   </p>
                 </div>
                 <button
@@ -556,7 +630,7 @@ export function FirewallDefense({ playerName, token, onExit }: Props) {
           </div>
 
           <p className="mt-3 text-center text-[9px] tracking-[0.35em] text-[hsl(135,25%,48%)]">
-            TAP THE RED ONES · SPEED RAMPS EVERY WAVE · UNLIMITED RUNS THIS SESSION
+            FOLLOW THE PRIORITY QUEUE · SPEED RAMPS HARD AND STAYS THERE · UNLIMITED RUNS
           </p>
         </div>
       </div>
